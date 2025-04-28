@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>900x1500 布局</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #e0e0e0;
+            font-family: "方正可变兰亭黑 GBK", "Microsoft YaHei", "微软雅黑", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .preview-container {
+            position: relative;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+        }
+
+        .preview-container.grabbing {
+            cursor: grabbing;
+        }
+        
+        .canvas-container {
+            width: 900px;
+            height: 1500px;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            transform-origin: center;
+            transition: transform 0.1s ease;
+        }
+
+        /* 网格系统 */
+        .grid {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 800px;
+            height: 1376px;
+            pointer-events: none;
+            opacity: 0.2;
+            border: 1px solid rgba(100, 100, 100, 0.4);
+        }
+        
+        .grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .v-line {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 0.5px;
+            background-color: #CCCCCC;
+        }
+        
+        .h-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 0.5px;
+            background-color: #CCCCCC;
+        }
+        
+        .content {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 800px;
+            height: 1376px;
+            overflow: hidden;
+        }
+        
+        .reference-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            justify-content: space-between;
+            padding: 32px 0;
+        }
+        
+        .reference-item {
+            display: flex;
+            position: relative;
+        }
+        
+        .dot-marker {
+            width: 8px; /* 0.25个网格单位 */
+            height: 8px;
+            background-color: #9a8866;
+            border-radius: 50%;
+            margin-top: 8px;
+            margin-right: 16px; /* 0.5个网格单位 */
+            flex-shrink: 0;
+        }
+        
+        .reference-content {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .image-placeholder {
+            height: 400px;
+            margin-bottom: 16px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .image-placeholder img {
+            height: 400px;
+            width: auto;
+            transition: opacity 0.3s ease;
+        }
+        
+        .image-placeholder.large img {
+            max-width: 768px;
+        }
+        
+        .image-placeholder.medium img {
+            max-width: 384px;
+        }
+        
+        .image-placeholder.small img {
+            max-width: 352px;
+        }
+        
+        .reference-caption {
+            font-size: 22px;
+            color: #9a8866;
+            margin-top: 8px; /* 0.25个网格单位 */
+            font-family: "方正可变兰亭黑 GBK", "Microsoft YaHei", "微软雅黑", sans-serif;
+            line-height: 32px; /* 1个网格单位 */
+        }
+        
+        .reference-date {
+            font-size: 22px;
+            color: #9a8866;
+            margin-top: 4px;
+            font-family: "方正可变兰亭黑 GBK", "Microsoft YaHei", "微软雅黑", sans-serif;
+            line-height: 32px; /* 1个网格单位 */
+        }
+        
+        .text-right {
+            position: absolute;
+            left: 100%;
+            margin-left: 16px;
+            bottom: 0;  /* 改为底部对齐 */
+            white-space: pre-line;
+            line-height: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 18px;
+        }
+        
+        .text-right > div {
+            height: auto;
+            min-height: 16px;
+            display: block;
+            position: relative;
+            margin-bottom: 8px;
+        }
+        
+        .text-container {
+            position: absolute;
+            font-size: 20px;
+            line-height: 8px;
+            color: #333;
+            white-space: pre;
+            font-family: "方正可变兰亭黑 GBK", "Microsoft YaHei", "微软雅黑", sans-serif;
+            font-weight: 300;
+        }
+
+        .text-below {
+            position: relative;
+            margin-top: 16px;
+            left: 0;
+        }
+
+        .image-text-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        /* 为第三个图片的容器添加特殊样式 */
+        .last-image-container {
+            position: absolute;
+            width: auto;  /* 让容器宽度适应内容 */
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        /* 调整第三个图片容器中的图片样式 */
+        .last-image-container .rectangle {
+            position: relative;  /* 改为相对定位 */
+            margin-right: 0;  /* 移除右边距 */
+        }
+
+        /* 调整文本行间距 */
+        .text-container > div > div {
+            margin-bottom: 8px; /* 设置行间距为8px */
+        }
+        
+        /* 调整日期行的间距 */
+        .text-container > div > div[style*="text-align: right"] {
+            margin-top: 8px !important; /* 覆盖之前的设置，保持8px的间距 */
+        }
+
+        /* 缩放信息提示 */
+        .zoom-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .zoom-info.visible {
+            opacity: 1;
+        }
+
+        .image-container {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .rectangle {
+            position: absolute;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .rectangle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container" id="previewContainer">
+        <div class="canvas-container" id="canvasContainer">
+            <!-- 网格系统 -->
+            <div class="grid">
+                <div class="grid-lines" id="gridLines"></div>
+            </div>
+            
+            <div class="content">
+            </div>
+        </div>
+    </div>
+
+    <!-- 缩放信息提示 -->
+    <div class="zoom-info" id="zoomInfo">缩放: 100%</div>
+
+    <script>
+        // 计算矩形面积
+        function calculateArea(width, height) {
+            return width * height;
+        }
+
+        // 检查矩形是否重叠
+        function isOverlapping(rect1, rect2) {
+            return !(rect1.x + rect1.width <= rect2.x ||
+                rect1.x >= rect2.x + rect2.width ||
+                rect1.y + rect1.height <= rect2.y ||
+                rect1.y >= rect2.y + rect2.height);
+        }
+
+        // 生成随机矩形
+        function generateRectangle(index, totalRects, existingRects, gridSize, contentSize) {
+            // 基于4:3或3:4比例计算网格数
+            function calculateGrids(isHorizontal) {
+                const minHeight = 6; // 最小高度为6个网格
+                const maxSize = 14;
+                
+                if (isHorizontal) {
+                    // 横向矩形：先确定高度，再按4:3比例计算宽度
+                    const height = Math.floor(Math.random() * (maxSize - minHeight + 1)) + minHeight;
+                    const width = Math.round(height * (4/3));
+                    return {
+                        width: Math.min(width, maxSize), // 确保宽度不超过最大限制
+                        height: height
+                    };
+                } else {
+                    // 竖向矩形：先确定高度，再按3:4比例计算宽度
+                    const height = Math.floor(Math.random() * (maxSize - minHeight + 1)) + minHeight;
+                    const width = Math.round(height * (3/4));
+                    return {
+                        width: Math.min(width, maxSize), // 确保宽度不超过最大限制
+                        height: height
+                    };
+                }
+            }
+
+            const isHorizontal = Math.random() < 0.67; // 67%概率是横向
+            const grids = calculateGrids(isHorizontal);
+            const width = grids.width * gridSize;
+            const height = grids.height * gridSize;
+
+            // 检查是否为最后一个矩形，需要预留右侧文本空间
+            const isLastRect = index === totalRects - 1;
+            const textRightSpace = isLastRect ? 200 : 0; // 为最后一个矩形右侧文本预留空间
+            
+            // 水平方向的随机位置（按网格对齐）
+            const maxX = Math.floor((contentSize.width - width - textRightSpace) / gridSize) * gridSize;
+            if (maxX < 0) return null;
+            
+            // 计算Y轴位置
+            let y;
+            const minGap = gridSize * 2; // 最小间距为2个网格
+            const textBelowSpace = index < 2 ? 80 : 0; // 为前两个矩形下方文本预留空间
+            
+            if (index === 0) {
+                // 第一个矩形靠上对齐
+                y = 0;
+            } else if (index === totalRects - 1) {
+                // 最后一个矩形靠下对齐，但要确保与前一个矩形保持最小间距
+                const prevRect = existingRects[index - 1];
+                const minY = prevRect.y + prevRect.height + minGap;
+                const idealY = contentSize.height - height;
+                
+                // 如果理想位置会导致间距过小，则需要重新生成
+                if (minY > idealY) {
+                    return null;
+                }
+                y = idealY;
+            } else {
+                // 中间的矩形，计算可用空间
+                const topRect = existingRects[index - 1];
+                const availableHeight = contentSize.height - height - textBelowSpace;
+                const minY = topRect.y + topRect.height + minGap + textBelowSpace; // 考虑文本空间
+                const maxY = availableHeight - minGap;
+                
+                // 检查是否有足够的空间
+                if (minY > maxY) {
+                    return null;
+                }
+                
+                // 在可用范围内随机选择位置（按网格对齐）
+                const availableGrids = Math.floor((maxY - minY) / gridSize);
+                if (availableGrids > 0) {
+                    y = minY + Math.floor(Math.random() * availableGrids) * gridSize;
+                } else {
+                    y = minY;
+                }
+            }
+            
+            // 水平方向也要保持最小间距
+            let validX = false;
+            let x;
+            let attempts = 20;
+            
+            while (!validX && attempts > 0) {
+                x = Math.floor(Math.random() * ((maxX / gridSize) + 1)) * gridSize;
+                validX = true;
+                
+                // 检查与其他矩形的水平间距
+                for (const rect of existingRects) {
+                    // 如果矩形在垂直方向上有重叠
+                    if (!(y + height <= rect.y || y >= rect.y + rect.height)) {
+                        // 检查水平间距
+                        const gap = x < rect.x ? rect.x - (x + width) : x - (rect.x + rect.width);
+                        if (gap < minGap) {
+                            validX = false;
+                            break;
+                        }
+                    }
+                }
+                attempts--;
+            }
+            
+            if (!validX) return null;
+            
+            const newRect = { x, y, width, height };
+            
+            console.log('Generated rectangle:', { 
+                index,
+                x, y, width, height, 
+                isHorizontal,
+                grids: `${grids.width}x${grids.height}`,
+                gridHeight: height/gridSize
+            });
+            
+            return newRect;
+        }
+
+        // 可用的图片列表
+        const images = [
+            '清明，灵魂弛放.jpg',
+            '清明，灵魂弛放 2.jpg',
+            '清明，灵魂弛放 3.jpg',
+            '清明，灵魂弛放 4.jpg',
+            '清明，灵魂弛放 5.jpg',
+            '清明，灵魂弛放 6.jpg'
+        ];
+
+        // 预加载所有图片
+        function preloadImages() {
+            return Promise.all(images.map(imgSrc => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve({
+                        src: 'tu/' + imgSrc,
+                        width: img.naturalWidth,
+                        height: img.naturalHeight,
+                        element: img
+                    });
+                    img.onerror = () => resolve(null);
+                    img.src = 'tu/' + imgSrc;
+                });
+            }));
+        }
+
+        // 检查图片是否适合矩形
+        function isImageSuitableForRect(imgData, rect) {
+            if (!imgData) return false;
+            return imgData.width >= rect.width * 1.2 && imgData.height >= rect.height * 1.2;
+        }
+
+        // 创建矩形
+        async function createRectangles() {
+            try {
+                const contentElement = document.querySelector('.content');
+                const gridSize = 32;
+                const contentSize = {
+                    width: contentElement.offsetWidth,
+                    height: contentElement.offsetHeight
+                };
+
+                // 清除现有内容
+                contentElement.innerHTML = '';
+
+                // 预加载所有图片
+                console.log('Preloading images...');
+                const preloadedImages = await preloadImages();
+                const validImages = preloadedImages.filter(img => img !== null);
+                console.log('Valid images loaded:', validImages.length);
+
+                if (validImages.length < 3) {
+                    throw new Error(`Not enough valid images. Found ${validImages.length}, need 3`);
+                }
+
+                // 生成矩形位置
+                const rectangles = [];
+                const placedRects = [];
+                const totalRects = 3;
+
+                // 准备文本内容
+                const texts = [
+                    `刘辛夷，"应有掌声"展览现\n场    2019年4月28日至6月13日`,
+                    `刘辛夷，"应有掌声"展览现\n场    2019年4月28日至6月13日`,
+                    `采写丨武冰聪\nInterview and writing\nWu Bingcong`
+                ];
+
+                // 生成矩形位置
+                for (let i = 0; i < totalRects; i++) {
+                    let attempts = 10;
+                    let rect = null;
+
+                    while (attempts > 0 && !rect) {
+                        rect = generateRectangle(i, totalRects, placedRects, gridSize, contentSize);
+                        attempts--;
+                    }
+
+                    if (!rect) {
+                        throw new Error(`Failed to generate rectangle ${i}`);
+                    }
+
+                    // 确保有合适的图片可用
+                    const suitableImages = validImages.filter(img => isImageSuitableForRect(img, rect));
+                    if (suitableImages.length === 0) {
+                        throw new Error(`No suitable images for rectangle ${i}`);
+                    }
+
+                    placedRects.push(rect);
+                    rectangles.push(rect);
+                }
+
+                // 为每个矩形分配图片
+                const usedImages = new Set();
+                const rectangleImages = rectangles.map(rect => {
+                    const availableImages = validImages.filter(img => 
+                        !usedImages.has(img.src) && isImageSuitableForRect(img, rect)
+                    );
+                    if (availableImages.length === 0) {
+                        throw new Error('No suitable images available');
+                    }
+                    const selectedImage = availableImages[0];
+                    usedImages.add(selectedImage.src);
+                    return selectedImage;
+                });
+
+                // 创建矩形和文本元素
+                rectangles.forEach((rect, index) => {
+                    const container = document.createElement('div');
+                    container.style.position = 'absolute';
+                    container.style.left = `${rect.x}px`;
+                    container.style.top = `${rect.y}px`;
+
+                    // 创建矩形元素
+                    const element = document.createElement('div');
+                    element.className = 'rectangle';
+                    element.style.width = `${rect.width}px`;
+                    element.style.height = `${rect.height}px`;
+
+                    // 添加图片
+                    const imgData = rectangleImages[index];
+                    const img = document.createElement('img');
+                    img.src = imgData.src;
+                    img.alt = '展览图片';
+                    element.appendChild(img);
+
+                    if (index < 2) {
+                        // 前两个矩形的文本在下方
+                        container.className = 'image-text-container';
+                        element.style.position = 'relative';
+                        container.appendChild(element);
+
+                        const textElement = document.createElement('div');
+                        textElement.className = 'text-container text-below';
+                        
+                        const lines = texts[index].split('\n');
+                        const formattedText = document.createElement('div');
+                        formattedText.style.display = 'flex';
+                        formattedText.style.flexDirection = 'column';
+                        
+                        lines.forEach(line => {
+                            const lineDiv = document.createElement('div');
+                            if (line.includes('2019')) {
+                                lineDiv.style.textAlign = 'right';
+                                lineDiv.style.marginTop = '8px';
+                            }
+                            lineDiv.textContent = line;
+                            formattedText.appendChild(lineDiv);
+                        });
+                        
+                        textElement.appendChild(formattedText);
+                        container.appendChild(textElement);
+                    } else {
+                        // 最后一个矩形的文本在右侧
+                        container.className = 'last-image-container';
+                        container.style.height = `${rect.height}px`; // 确保容器高度正确
+                        
+                        // 创建图片容器
+                        const imageContainer = document.createElement('div');
+                        imageContainer.style.position = 'relative';
+                        imageContainer.appendChild(element);
+                        container.appendChild(imageContainer);
+
+                        // 创建文本容器
+                        const textElement = document.createElement('div');
+                        textElement.className = 'text-container text-right';
+                        
+                        // 分行显示文本
+                        const lines = texts[index].split('\n');
+                        lines.forEach(line => {
+                            const lineDiv = document.createElement('div');
+                            lineDiv.textContent = line;
+                            textElement.appendChild(lineDiv);
+                        });
+                        
+                        container.appendChild(textElement);
+                    }
+
+                    contentElement.appendChild(container);
+                    console.log('Created rectangle:', { 
+                        index, 
+                        rect, 
+                        image: imgData.src,
+                        imageSize: `${imgData.width}x${imgData.height}`
+                    });
+                });
+
+            } catch (error) {
+                console.error('Layout generation failed:', error);
+                const contentElement = document.querySelector('.content');
+                contentElement.innerHTML = `
+                    <div style="color: red; padding: 20px;">
+                        布局生成失败: ${error.message}<br>
+                        请刷新页面重试
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            // 生成网格线
+            const gridElement = document.getElementById('gridLines');
+            const GRID_COLS = 25;
+            const GRID_ROWS = 43;
+            
+            // 计算单元格尺寸
+            const cellWidth = 800 / GRID_COLS;
+            const cellHeight = 1376 / GRID_ROWS;
+            
+            // 绘制垂直线
+            for (let i = 0; i <= GRID_COLS; i++) {
+                const x = i * cellWidth;
+                const vLine = document.createElement('div');
+                vLine.className = 'v-line';
+                vLine.style.left = x + 'px';
+                gridElement.appendChild(vLine);
+            }
+            
+            // 绘制水平线
+            for (let i = 0; i <= GRID_ROWS; i++) {
+                const y = i * cellHeight;
+                const hLine = document.createElement('div');
+                hLine.className = 'h-line';
+                hLine.style.top = y + 'px';
+                gridElement.appendChild(hLine);
+            }
+
+            // 缩放和拖拽功能
+            const previewContainer = document.getElementById('previewContainer');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const zoomInfo = document.getElementById('zoomInfo');
+            const contentElement = document.querySelector('.content');
+            
+            let scale = 1;
+            let offsetX = 0;
+            let offsetY = 0;
+            let isDragging = false;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            
+            // 添加点击事件监听器
+            contentElement.addEventListener('click', function(e) {
+                // 阻止事件冒泡，避免触发双击事件
+                e.stopPropagation();
+                // 重新生成矩形
+                createRectangles();
+            });
+            
+            // 滚轮缩放
+            previewContainer.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                
+                const rect = previewContainer.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const oldScale = scale;
+                
+                if (e.deltaY < 0) {
+                    scale = Math.min(scale * 1.1, 3); // 放大，最大3倍
+                } else {
+                    scale = Math.max(scale / 1.1, 0.3); // 缩小，最小0.3倍
+                }
+                
+                updateTransform();
+                showZoomInfo();
+            });
+            
+            // 拖拽功能
+            previewContainer.addEventListener('mousedown', function(e) {
+                if (e.button === 0) { // 左键点击
+                    isDragging = true;
+                    dragStartX = e.clientX - offsetX;
+                    dragStartY = e.clientY - offsetY;
+                    previewContainer.classList.add('grabbing');
+                }
+            });
+            
+            window.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    offsetX = e.clientX - dragStartX;
+                    offsetY = e.clientY - dragStartY;
+                    updateTransform();
+                }
+            });
+            
+            window.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    previewContainer.classList.remove('grabbing');
+                }
+            });
+            
+            // 双击重置
+            previewContainer.addEventListener('dblclick', function() {
+                scale = 1;
+                offsetX = 0;
+                offsetY = 0;
+                updateTransform();
+                showZoomInfo();
+                createRectangles(); // 重新创建矩形
+            });
+            
+            function updateTransform() {
+                canvasContainer.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+            }
+            
+            function showZoomInfo() {
+                zoomInfo.textContent = `缩放: ${Math.round(scale * 100)}%`;
+                zoomInfo.classList.add('visible');
+                
+                clearTimeout(window.zoomInfoTimeout);
+                window.zoomInfoTimeout = setTimeout(function() {
+                    zoomInfo.classList.remove('visible');
+                }, 2000);
+            }
+
+            // 创建初始矩形
+            console.log('Initializing rectangles...');
+            createRectangles();
+        };
+    </script>
+</body>
+</html> 
